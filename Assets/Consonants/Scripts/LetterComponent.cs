@@ -8,6 +8,7 @@ public class LetterComponent : MonoBehaviour {
 
 	private readonly Color[] colors = new[] { Color.red, Color.green, Color.blue, Color.yellow, Color.magenta, Color.cyan };
 
+	public bool Black = false;
 	public KMSelectable Selectable;
 	public TextMesh Text;
 
@@ -35,7 +36,7 @@ public class LetterComponent : MonoBehaviour {
 			rotationFrom = rotationTo;
 			colorFrom = colorTo;
 			rotationTo = rotationFrom + Random.Range(-2, 3);
-			colorTo = colors.PickRandom();
+			colorTo = Black ? Color.black : colors.PickRandom();
 			anim = 0f;
 			speed = Random.Range(MIN_SPEED, MAX_SPEED);
 			stageProgress = 0f;

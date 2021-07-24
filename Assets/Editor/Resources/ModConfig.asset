@@ -14,10 +14,10 @@ MonoBehaviour:
   id: needy_consonants
   title: Consonants
   author: NickLatkovich
-  description: "When the module is activated, 15 letters will be shown. If the number
-    of consonants is odd, let the timer run out - this will deactivate the module
-    without a strike. Otherwise, if their number is even, press them in alphabetical
-    order.\r"
-  version: 1.0.0
+  description: "When the module is activated, letters will appear on the screen. Count
+    the number of consonants. If their number is even, press them in alphabetical
+    order. Otherwise, if their number is odd, press only one consonant letter with
+    the lowest sequential number in the alphabet, and then let the timer run out.\r"
+  version: 1.2.0
   outputFolder: build
   previewImage: {fileID: 2800000, guid: da5f7921bc489a345826829ee2174c75, type: 3}

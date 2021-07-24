@@ -1,14 +1,18 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 public class ConsonantsModule : MonoBehaviour {
 	public const int WIDTH = 5;
 	public const int HEIGHT = 3;
 	public const int LETTERS_COUNT = WIDTH * HEIGHT;
+	public const float TWITCH_PLAYS_TIMER = 95f;
 	public const float X_OFFSET = .025f;
 	public const float Z_OFFSET = .025f;
+	public const float BLACK_LETTER_UPDATING_INTERVAL_MIN = 5f;
+	public const float BLACK_LETTER_UPDATING_INTERVAL_MAX = 10f;
 
 	private static int moduleIdCounter = 1;
 	private static readonly HashSet<char> VOWELS = new HashSet<char>(new[] { 'A', 'E', 'I', 'O', 'U' });
@@ -17,7 +21,8 @@ public class ConsonantsModule : MonoBehaviour {
 		!VOWELS.Contains(c) && !EXCLUDE.Contains(c)
 	)));
 
-	public readonly string TwitchHelpMessage = "TODO: Write";
+	public readonly string TwitchHelpMessage =
+		"\"{0} press A1 B2 C3\" - press letters by their positions. Word \"press\" is optional. Top left is A1. Columns: A-E. Rows: 1-3";
 
 	public Renderer BackgroundRenderer;
 	public GameObject LettersContainer;
@@ -26,11 +31,14 @@ public class ConsonantsModule : MonoBehaviour {
 	public KMAudio Audio;
 	public LetterComponent LetterPrefab;
 
+	public bool TwitchPlaysActive;
+
 	private bool onceActivated = false;
 	private bool activated = false;
-	private bool skip;
+	private bool even;
 	private int moduleId;
 	private float activationTime;
+	private float nextBlackLetterUpdateTime;
 	private LetterComponent[] letters;
 
 	private void Start() {
@@ -60,7 +68,14 @@ public class ConsonantsModule : MonoBehaviour {
 	private void Update() {
 		Color warningColor = Color.green;
 		if (!onceActivated) warningColor = new Color(1f, Mathf.Sin(Time.time * Mathf.PI) * 0.5f + 0.5f, 0f);
-		else if (activated) warningColor = new Color(1f, Mathf.Sin(Mathf.PI * (activationTime + Mathf.Pow(Time.time - activationTime, 1.2f))) * 0.5f + 0.5f, 0f);
+		if (activated) {
+			warningColor = new Color(1f, Mathf.Sin(Mathf.PI * (activationTime + Mathf.Pow(Time.time - activationTime, 1.2f))) * 0.5f + 0.5f, 0f);
+			if (Time.time >= nextBlackLetterUpdateTime) {
+				foreach (LetterComponent letter in letters) letter.Black = false;
+				if (letters.All(l => l.letter != null)) letters.Where(l => VOWELS.Contains(l.letter.Value)).PickRandom().Black = true;
+				nextBlackLetterUpdateTime = Time.time + Random.Range(BLACK_LETTER_UPDATING_INTERVAL_MIN, BLACK_LETTER_UPDATING_INTERVAL_MAX);
+			}
+		}
 		BackgroundRenderer.material.SetColor("_UnlitTint", warningColor);
 	}
 
@@ -68,11 +83,12 @@ public class ConsonantsModule : MonoBehaviour {
 		Needy.OnNeedyActivation += OnNeedyActivation;
 		Needy.OnNeedyDeactivation += OnNeedyDeactivation;
 		Needy.OnTimerExpired += OnTimerExpired;
+		if (TwitchPlaysActive) Needy.CountdownTime = TWITCH_PLAYS_TIMER;
 	}
 
 	private void OnNeedyActivation() {
-		int consonantsCount = Random.Range(1, 7);
-		skip = consonantsCount % 2 == 1;
+		int consonantsCount = Random.Range(2, 8);
+		even = consonantsCount % 2 == 0;
 		HashSet<char> consonants = new HashSet<char>(CONSONANTS);
 		List<char> chars = new List<char>();
 		for (int i = 0; i < consonantsCount; i++) {
@@ -87,6 +103,8 @@ public class ConsonantsModule : MonoBehaviour {
 		Debug.LogFormat("[Consonants #{0}] Module activated. Consonants: {1}", moduleId, consonantsList.Join(""));
 		for (int i = 0; i < LETTERS_COUNT; i++) letters[i].letter = charsArray[i];
 		activationTime = Time.time;
+		nextBlackLetterUpdateTime = Time.time + Random.Range(BLACK_LETTER_UPDATING_INTERVAL_MIN, BLACK_LETTER_UPDATING_INTERVAL_MAX);
+		foreach (LetterComponent letter in letters) letter.Black = false;
 		onceActivated = true;
 		activated = true;
 	}
@@ -97,20 +115,20 @@ public class ConsonantsModule : MonoBehaviour {
 	}
 
 	private void OnTimerExpired() {
-		if (!skip) {
-			Needy.HandleStrike();
-			Debug.LogFormat("[Consonants #{0}] Timer expired. Strike!", moduleId);
-		} else {
+		if (!even && letters.Count(l => l.letter == null) == 1) {
 			Debug.LogFormat("[Consonants #{0}] Time expired. Module deactivated", moduleId);
 			Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.CorrectChime, transform);
+		} else {
+			Debug.LogFormat("[Consonants #{0}] Timer expired. Strike!", moduleId);
+			Needy.HandleStrike();
 		}
 		OnNeedyDeactivation();
 	}
 
 	private void OnLetterPressed(LetterComponent letter) {
 		if (letter.letter == null) return;
-		if (skip) {
-			Debug.LogFormat("[Consonants #{0}] Pressed letter when initial consonants count is odd. Strike!", moduleId);
+		if (!even && letters.Any(l => l.letter == null)) {
+			Debug.LogFormat("[Consonants #{0}] Pressed 2nd letter when initial consonants count is odd. Strike!", moduleId);
 			Needy.HandleStrike();
 			return;
 		}
@@ -136,7 +154,17 @@ public class ConsonantsModule : MonoBehaviour {
 
 	public IEnumerator ProcessTwitchCommand(string command) {
 		command = command.Trim().ToLower();
-		yield break;
+		if (command.StartsWith("press ")) command = command.Skip("press ".Length).Join("").Trim();
+		if (!Regex.IsMatch(command, "^((^| +)[a-e][1-3])+$")) yield break;
+		List<KMSelectable> result = new List<KMSelectable>();
+		foreach (string coord in command.Split(' ').Where(s => s.Length > 0)) {
+			int x = coord[0] - 'a';
+			int z = '3' - coord[1];
+			LetterComponent letter = letters[x * HEIGHT + z];
+			result.Add(letter.Selectable);
+		}
+		yield return null;
+		yield return result.ToArray();
 	}
 
 	private IEnumerator TwitchHandleForcedSolve() {
