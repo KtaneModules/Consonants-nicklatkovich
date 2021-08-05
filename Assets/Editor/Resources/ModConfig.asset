@@ -18,6 +18,6 @@ MonoBehaviour:
     the number of consonants. If their number is even, press them in alphabetical
     order. Otherwise, if their number is odd, press only one consonant letter with
     the lowest sequential number in the alphabet, and then let the timer run out.\r"
-  version: 1.2.0
+  version: 1.2.1
   outputFolder: build
   previewImage: {fileID: 2800000, guid: da5f7921bc489a345826829ee2174c75, type: 3}

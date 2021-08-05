@@ -5,10 +5,11 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 
 public class ConsonantsModule : MonoBehaviour {
+	public const bool EXTRA_TIME = false;
 	public const int WIDTH = 5;
 	public const int HEIGHT = 3;
 	public const int LETTERS_COUNT = WIDTH * HEIGHT;
-	public const float TWITCH_PLAYS_TIMER = 95f;
+	public const float TWITCH_PLAYS_TIMER_PLUS = 55f;
 	public const float X_OFFSET = .025f;
 	public const float Z_OFFSET = .025f;
 	public const float BLACK_LETTER_UPDATING_INTERVAL_MIN = 5f;
@@ -83,10 +84,10 @@ public class ConsonantsModule : MonoBehaviour {
 		Needy.OnNeedyActivation += OnNeedyActivation;
 		Needy.OnNeedyDeactivation += OnNeedyDeactivation;
 		Needy.OnTimerExpired += OnTimerExpired;
-		if (TwitchPlaysActive) Needy.CountdownTime = TWITCH_PLAYS_TIMER;
 	}
 
 	private void OnNeedyActivation() {
+		if (TwitchPlaysActive || EXTRA_TIME) Needy.SetNeedyTimeRemaining(Needy.GetNeedyTimeRemaining() + TWITCH_PLAYS_TIMER_PLUS);
 		int consonantsCount = Random.Range(2, 8);
 		even = consonantsCount % 2 == 0;
 		HashSet<char> consonants = new HashSet<char>(CONSONANTS);
